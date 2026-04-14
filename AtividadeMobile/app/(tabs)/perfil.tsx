@@ -1,10 +1,13 @@
 import {
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../context/auth';
@@ -54,6 +57,24 @@ export default function PerfilScreen() {
 
   const info = ROLE_INFO[role as string] ?? ROLE_INFO.leitor;
 
+  const [nome, setNome] = useState('Usuário Demo');
+  const [email, setEmail] = useState('demo@miaunews.com.br');
+  const [modalVisivel, setModalVisivel] = useState(false);
+  const [nomeEdicao, setNomeEdicao] = useState('');
+  const [emailEdicao, setEmailEdicao] = useState('');
+
+  function abrirEdicao() {
+    setNomeEdicao(nome);
+    setEmailEdicao(email);
+    setModalVisivel(true);
+  }
+
+  function salvarEdicao() {
+    if (nomeEdicao.trim()) setNome(nomeEdicao.trim());
+    if (emailEdicao.trim()) setEmail(emailEdicao.trim());
+    setModalVisivel(false);
+  }
+
   function handleLogout() {
     logout();
     router.replace('/login');
@@ -66,8 +87,8 @@ export default function PerfilScreen() {
         <View style={[styles.avatar, { borderColor: info.cor }]}>
           <Ionicons name={info.icon} size={52} color={info.cor} />
         </View>
-        <Text style={styles.nome}>Usuário Demo</Text>
-        <Text style={styles.email}>demo@miaunews.com.br</Text>
+        <Text style={styles.nome}>{nome}</Text>
+        <Text style={styles.email}>{email}</Text>
         <View style={[styles.badge, { borderColor: info.cor, backgroundColor: info.cor + '22' }]}>
           <Ionicons name={info.icon} size={13} color={info.cor} />
           <Text style={[styles.badgeTexto, { color: info.cor }]}>{info.label}</Text>
@@ -91,7 +112,7 @@ export default function PerfilScreen() {
         <Text style={styles.secaoTitulo}>Dados da conta</Text>
         <View style={styles.dadoRow}>
           <Ionicons name="mail-outline" size={18} color="#666" />
-          <Text style={styles.dadoTexto}>demo@miaunews.com.br</Text>
+          <Text style={styles.dadoTexto}>{email}</Text>
         </View>
         <View style={styles.dadoRow}>
           <Ionicons name="location-outline" size={18} color="#666" />
@@ -108,7 +129,7 @@ export default function PerfilScreen() {
       </View>
 
       {/* Ações */}
-      <TouchableOpacity style={styles.botaoEditar} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.botaoEditar} onPress={abrirEdicao} activeOpacity={0.8}>
         <Ionicons name="pencil-outline" size={18} color="#fff" />
         <Text style={styles.botaoEditarTexto}>Editar perfil</Text>
       </TouchableOpacity>
@@ -117,6 +138,43 @@ export default function PerfilScreen() {
         <Ionicons name="log-out-outline" size={18} color="#E94560" />
         <Text style={styles.botaoSairTexto}>Sair da conta</Text>
       </TouchableOpacity>
+
+      {/* Modal de edição */}
+      <Modal visible={modalVisivel} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitulo}>Editar Perfil</Text>
+
+            <Text style={styles.modalLabel}>Nome</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={nomeEdicao}
+              onChangeText={setNomeEdicao}
+              placeholder="Seu nome"
+              placeholderTextColor="#555"
+              autoCapitalize="words"
+            />
+
+            <Text style={styles.modalLabel}>E-mail</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={emailEdicao}
+              onChangeText={setEmailEdicao}
+              placeholder="seu@email.com"
+              placeholderTextColor="#555"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            <TouchableOpacity style={styles.modalBotaoSalvar} onPress={salvarEdicao} activeOpacity={0.8}>
+              <Text style={styles.modalBotaoSalvarTexto}>Salvar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalBotaoCancelar} onPress={() => setModalVisivel(false)} activeOpacity={0.8}>
+              <Text style={styles.modalBotaoCancelarTexto}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -191,4 +249,59 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   botaoSairTexto: { color: '#E94560', fontSize: 15, fontWeight: '600' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: '#000000aa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalBox: {
+    backgroundColor: '#16213E',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#0F3460',
+  },
+  modalTitulo: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalLabel: {
+    color: '#E94560',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  modalInput: {
+    backgroundColor: '#1A1A2E',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#0F3460',
+    color: '#fff',
+    fontSize: 15,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    marginBottom: 16,
+  },
+  modalBotaoSalvar: {
+    backgroundColor: '#E94560',
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalBotaoSalvarTexto: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  modalBotaoCancelar: {
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: 'center',
+  },
+  modalBotaoCancelarTexto: { color: '#888', fontSize: 14 },
 });

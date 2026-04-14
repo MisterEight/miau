@@ -7,82 +7,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useAppStore } from '../context/appStore';
+import type { Noticia } from '../context/appStore';
 
-export type Noticia = {
-  id: string;
-  titulo: string;
-  resumo: string;
-  autor: string;
-  data: string;
-  tag: string;
-  uf: string;
-  leituras: number;
-  comentarios: number;
-  publicada: boolean;
-};
-
-export const NOTICIAS: Noticia[] = [
-  {
-    id: '1',
-    titulo: 'Jesus Esclarece que Retorno Será Limitado ao Negócio de Carpintaria',
-    resumo: 'O Filho de Deus confirmou que sua Segunda Vinda focará exclusivamente em projetos de marcenaria e móveis artesanais.',
-    autor: 'Ana Souza',
-    data: '30 mar 2026',
-    tag: 'Cultura',
-    uf: 'SP',
-    leituras: 4821,
-    comentarios: 37,
-    publicada: true,
-  },
-  {
-    id: '2',
-    titulo: 'Cientistas Descobrem que Café é Tecnicamente um Vegetal',
-    resumo: 'Estudo publicado na revista Nature confirma que consumidores de café estão cumprindo metas de alimentação saudável.',
-    autor: 'Bruno Lima',
-    data: '2 abr 2026',
-    tag: 'Ciência',
-    uf: 'RJ',
-    leituras: 3150,
-    comentarios: 22,
-    publicada: true,
-  },
-  {
-    id: '3',
-    titulo: 'Prefeitura Anuncia que Semáforo Piscando Amarelo É Feature, Não Bug',
-    resumo: 'Secretaria de Trânsito divulga nota oficial esclarecendo que o comportamento é intencional e visa "testar reflexos dos motoristas".',
-    autor: 'Elisa Ramos',
-    data: '5 abr 2026',
-    tag: 'Política',
-    uf: 'MG',
-    leituras: 2900,
-    comentarios: 58,
-    publicada: true,
-  },
-  {
-    id: '4',
-    titulo: 'Desenvolvedor Afirma que Vai Refatorar Código "Amanhã" pelo Quinto Ano Consecutivo',
-    resumo: 'Colegas relatam que o código foi escrito "só pra testar" em 2020 e desde então roda em produção sem alterações.',
-    autor: 'Ana Souza',
-    data: '8 abr 2026',
-    tag: 'Tecnologia',
-    uf: 'SP',
-    leituras: 7643,
-    comentarios: 94,
-    publicada: true,
-  },
-  {
-    id: '5',
-    titulo: 'Pesquisa Mostra que 100% das Plantas Morrem Quando Ninguém Cuida',
-    resumo: 'Estudo de 3 anos e R$ 2 milhões confirma que plantas precisam de água para sobreviver.',
-    autor: 'Carla Nunes',
-    data: '10 abr 2026',
-    tag: 'Ciência',
-    uf: 'RS',
-    leituras: 1200,
-    comentarios: 11,
-    publicada: false,
-  },
-];
+export type { Noticia };
 
 const COR_TAG: Record<string, string> = {
   Cultura: '#9B59B6',
@@ -140,7 +68,8 @@ function NoticiaCard({ item }: CardProps) {
 }
 
 export default function HomeScreen() {
-  const publicadas = NOTICIAS.filter((n) => n.publicada);
+  const { noticias } = useAppStore();
+  const publicadas = noticias.filter((n) => n.publicada);
 
   return (
     <FlatList

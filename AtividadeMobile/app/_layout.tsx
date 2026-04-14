@@ -1,9 +1,11 @@
 import { Stack } from 'expo-router';
 import { AuthProvider } from './context/auth';
+import { AppStoreProvider } from './context/appStore';
 
 export default function RootLayout() {
   return (
     <AuthProvider>
+      <AppStoreProvider>
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
@@ -20,6 +22,7 @@ export default function RootLayout() {
           }}
         />
       </Stack>
+      </AppStoreProvider>
     </AuthProvider>
   );
 }

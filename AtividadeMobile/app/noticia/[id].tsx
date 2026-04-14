@@ -1,5 +1,4 @@
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,21 +11,8 @@ import {
 import { useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { NOTICIAS } from '../(tabs)/index';
+import { useAppStore } from '../context/appStore';
 import { useAuth } from '../context/auth';
-
-type Comentario = {
-  id: number;
-  autor: string;
-  texto: string;
-  data: string;
-  curtidas: number;
-};
-
-const COMENTARIOS_INICIAIS: Comentario[] = [
-  { id: 1, autor: 'Diego Martins', texto: 'Incrível matéria! Muito bem escrita.', data: '8 abr', curtidas: 12 },
-  { id: 2, autor: 'Carla Nunes', texto: 'Compartilhei com todo mundo, genial!', data: '8 abr', curtidas: 5 },
-];
 
 const COR_TAG: Record<string, string> = {
   Cultura: '#9B59B6',
@@ -36,12 +22,21 @@ const COR_TAG: Record<string, string> = {
   Entretenimento: '#F39C12',
 };
 
+const NOME_POR_ROLE: Record<string, string> = {
+  autor: 'Ana Souza',
+  editor: 'Elisa Ramos',
+  admin: 'Super Admin',
+  leitor: 'Leitor',
+};
+
 export default function NoticiaDetalheScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { role } = useAuth();
-  const noticia = NOTICIAS.find((n) => n.id === id);
+  const { noticias, getComentarios, addComentario } = useAppStore();
 
-  const [comentarios, setComentarios] = useState<Comentario[]>(COMENTARIOS_INICIAIS);
+  const noticia = noticias.find((n) => n.id === id);
+  const comentarios = getComentarios(id!);
+
   const [novoComentario, setNovoComentario] = useState('');
   const [curtidas, setCurtidas] = useState<Set<number>>(new Set());
 
@@ -58,25 +53,15 @@ export default function NoticiaDetalheScreen() {
 
   function handleComentar() {
     if (!novoComentario.trim()) return;
-    if (!role) {
-      Alert.alert('Login necessário', 'Faça login para comentar.');
-      return;
-    }
-    const novo: Comentario = {
-      id: Date.now(),
-      autor: 'Você',
-      texto: novoComentario.trim(),
-      data: 'agora',
-      curtidas: 0,
-    };
-    setComentarios((prev) => [novo, ...prev]);
+    const autorNome = NOME_POR_ROLE[role as string] ?? 'Você';
+    addComentario(id!, novoComentario.trim(), autorNome);
     setNovoComentario('');
   }
 
-  function toggleCurtida(id: number) {
+  function toggleCurtida(comentarioId: number) {
     setCurtidas((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      next.has(comentarioId) ? next.delete(comentarioId) : next.add(comentarioId);
       return next;
     });
   }

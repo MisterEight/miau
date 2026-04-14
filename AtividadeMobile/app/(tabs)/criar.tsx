@@ -8,21 +8,25 @@ import {
   View,
 } from 'react-native';
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-
-const TAGS = ['Cultura', 'Ciência', 'Política', 'Tecnologia', 'Entretenimento'];
+import { useAppStore } from '../context/appStore';
+import { useAuth } from '../context/auth';
 
 const UFS = ['SP', 'RJ', 'MG', 'RS', 'PR', 'BA', 'CE', 'PE', 'GO', 'DF'];
 
-const COR_TAG: Record<string, string> = {
-  Cultura: '#9B59B6',
-  Ciência: '#2ECC71',
-  Política: '#E74C3C',
-  Tecnologia: '#3498DB',
-  Entretenimento: '#F39C12',
+const NOME_POR_ROLE: Record<string, string> = {
+  autor: 'Ana Souza',
+  editor: 'Elisa Ramos',
+  admin: 'Super Admin',
+  leitor: 'Usuário Demo',
 };
 
 export default function CriarScreen() {
+  const router = useRouter();
+  const { addNoticia, tags } = useAppStore();
+  const { role } = useAuth();
+
   const [titulo, setTitulo] = useState('');
   const [resumo, setResumo] = useState('');
   const [conteudo, setConteudo] = useState('');
@@ -35,12 +39,36 @@ export default function CriarScreen() {
       Alert.alert('Atenção', 'Título e conteúdo são obrigatórios.');
       return;
     }
+
+    const autor = NOME_POR_ROLE[role as string] ?? 'Demo';
+    const hoje = new Date();
+    const data = hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    addNoticia({
+      titulo: titulo.trim(),
+      resumo: resumo.trim() || titulo.trim(),
+      autor,
+      data,
+      tag: tag || 'Geral',
+      uf: uf || 'SP',
+      publicada: publicar,
+    });
+
     Alert.alert(
       publicar ? 'Artigo publicado!' : 'Rascunho salvo!',
       publicar
         ? `"${titulo}" foi publicado com sucesso.`
-        : `"${titulo}" foi salvo como rascunho.`,
-      [{ text: 'OK', onPress: limpar }]
+        : `"${titulo}" foi salvo como rascunho em Minhas Notícias.`,
+      [
+        {
+          text: 'Ver minhas notícias',
+          onPress: () => {
+            limpar();
+            router.push('/(tabs)/minhas-noticias');
+          },
+        },
+        { text: 'Criar outro', onPress: limpar },
+      ]
     );
   }
 
@@ -80,16 +108,15 @@ export default function CriarScreen() {
       <View style={styles.campo}>
         <Text style={styles.label}>Categoria</Text>
         <View style={styles.chips}>
-          {TAGS.map((t) => {
-            const cor = COR_TAG[t];
-            const ativo = tag === t;
+          {tags.map((t) => {
+            const ativo = tag === t.nome;
             return (
               <TouchableOpacity
-                key={t}
-                style={[styles.chip, { borderColor: cor, backgroundColor: ativo ? cor : 'transparent' }]}
-                onPress={() => setTag(ativo ? '' : t)}
+                key={t.id}
+                style={[styles.chip, { borderColor: t.cor, backgroundColor: ativo ? t.cor : 'transparent' }]}
+                onPress={() => setTag(ativo ? '' : t.nome)}
               >
-                <Text style={[styles.chipTexto, { color: ativo ? '#fff' : cor }]}>{t}</Text>
+                <Text style={[styles.chipTexto, { color: ativo ? '#fff' : t.cor }]}>{t.nome}</Text>
               </TouchableOpacity>
             );
           })}

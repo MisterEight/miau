@@ -1,17 +1,20 @@
 import {
   Alert,
   FlatList,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { NOTICIAS } from './index';
+import { useAppStore } from '../context/appStore';
 
-type Aba = 'resumo' | 'usuarios' | 'tags' | 'comentarios';
+type Aba = 'resumo' | 'usuarios' | 'tags';
 
 type Usuario = {
   id: number;
@@ -22,28 +25,13 @@ type Usuario = {
   ativo: boolean;
 };
 
-const USUARIOS: Usuario[] = [
+const USUARIOS_INICIAL: Usuario[] = [
   { id: 1, nome: 'Ana Souza', email: 'ana@miau.com', role: 'autor', uf: 'SP', ativo: true },
   { id: 2, nome: 'Bruno Lima', email: 'bruno@miau.com', role: 'autor', uf: 'RJ', ativo: true },
   { id: 3, nome: 'Carla Nunes', email: 'carla@miau.com', role: 'leitor', uf: 'MG', ativo: true },
   { id: 4, nome: 'Diego Martins', email: 'diego@miau.com', role: 'leitor', uf: 'RS', ativo: false },
   { id: 5, nome: 'Elisa Ramos', email: 'elisa@miau.com', role: 'editor', uf: 'PR', ativo: true },
   { id: 6, nome: 'Felipe Torres', email: 'felipe@miau.com', role: 'leitor', uf: 'BA', ativo: true },
-];
-
-const TAGS_CRUD = [
-  { id: 1, nome: 'Tecnologia', usos: 12, cor: '#3498DB' },
-  { id: 2, nome: 'Ciência', usos: 8, cor: '#2ECC71' },
-  { id: 3, nome: 'Política', usos: 15, cor: '#E74C3C' },
-  { id: 4, nome: 'Cultura', usos: 6, cor: '#9B59B6' },
-  { id: 5, nome: 'Entretenimento', usos: 4, cor: '#F39C12' },
-];
-
-const COMENTARIOS = [
-  { id: 1, autor: 'Diego Martins', texto: 'Incrível matéria! Muito bem escrita.', noticia: 'Desenvolvedor Afirma...', data: '8 abr', status: 'aprovado' },
-  { id: 2, autor: 'Carla Nunes', texto: 'Não concordo com esse ponto de vista...', noticia: 'Prefeitura Anuncia...', data: '6 abr', status: 'pendente' },
-  { id: 3, autor: 'Felipe Torres', texto: 'Compartilhei com meus amigos rsrs', noticia: 'Jesus Esclarece...', data: '1 abr', status: 'aprovado' },
-  { id: 4, autor: 'Usuário Anon', texto: 'Fake news!!!', noticia: 'Cientistas Descobrem...', data: '3 abr', status: 'sinalizado' },
 ];
 
 const COR_ROLE: Record<string, string> = {
@@ -53,24 +41,27 @@ const COR_ROLE: Record<string, string> = {
   admin: '#F0A500',
 };
 
-const COR_COMMENT_STATUS: Record<string, string> = {
-  aprovado: '#2ECC71',
-  pendente: '#F0A500',
-  sinalizado: '#E74C3C',
-};
-
 export default function DashboardScreen() {
+  const router = useRouter();
+  const { noticias, tags, addTag, deleteTag, updateTag } = useAppStore();
   const [aba, setAba] = useState<Aba>('resumo');
-  const [usuarios, setUsuarios] = useState(USUARIOS);
+  const [usuarios, setUsuarios] = useState(USUARIOS_INICIAL);
 
-  const totalLeituras = NOTICIAS.reduce((s, n) => s + n.leituras, 0);
-  const totalComentarios = NOTICIAS.reduce((s, n) => s + n.comentarios, 0);
+  // Modal nova tag
+  const [modalNovaTag, setModalNovaTag] = useState(false);
+  const [novaTagNome, setNovaTagNome] = useState('');
+
+  // Modal editar tag
+  const [tagEditandoId, setTagEditandoId] = useState<number | null>(null);
+  const [tagEditandoNome, setTagEditandoNome] = useState('');
+
+  const totalLeituras = noticias.reduce((s, n) => s + n.leituras, 0);
+  const totalComentarios = noticias.reduce((s, n) => s + n.comentarios, 0);
 
   const ABAS: { key: Aba; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { key: 'resumo', label: 'Resumo', icon: 'bar-chart-outline' },
     { key: 'usuarios', label: 'Usuários', icon: 'people-outline' },
     { key: 'tags', label: 'Tags', icon: 'pricetags-outline' },
-    { key: 'comentarios', label: 'Comentários', icon: 'chatbubbles-outline' },
   ];
 
   function toggleUsuario(id: number) {
@@ -89,6 +80,80 @@ export default function DashboardScreen() {
       },
     ]);
   }
+
+  function handleSalvarNovaTag() {
+    if (!novaTagNome.trim()) {
+      Alert.alert('Atenção', 'Digite um nome para a tag.');
+      return;
+    }
+    addTag(novaTagNome.trim());
+    setNovaTagNome('');
+    setModalNovaTag(false);
+  }
+
+  function abrirEdicaoTag(id: number, nome: string) {
+    setTagEditandoId(id);
+    setTagEditandoNome(nome);
+  }
+
+  function salvarEdicaoTag() {
+    if (!tagEditandoNome.trim() || tagEditandoId === null) return;
+    updateTag(tagEditandoId, tagEditandoNome.trim());
+    setTagEditandoId(null);
+    setTagEditandoNome('');
+  }
+
+  function handleExcluirTag(id: number, nome: string) {
+    Alert.alert('Excluir tag', `Deseja remover a tag "${nome}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Excluir', style: 'destructive', onPress: () => deleteTag(id) },
+    ]);
+  }
+
+  const CRUDS = [
+    {
+      label: 'CRUD Notícias',
+      icon: 'newspaper-outline',
+      cor: '#4A90D9',
+      count: noticias.length,
+      onPress: () => router.push('/(tabs)/painel'),
+    },
+    {
+      label: 'CRUD Usuários',
+      icon: 'people-outline',
+      cor: '#E94560',
+      count: usuarios.length,
+      onPress: () => setAba('usuarios'),
+    },
+    {
+      label: 'CRUD Tags',
+      icon: 'pricetags-outline',
+      cor: '#9B59B6',
+      count: tags.length,
+      onPress: () => setAba('tags'),
+    },
+    {
+      label: 'CRUD Perfis',
+      icon: 'ribbon-outline',
+      cor: '#2ECC71',
+      count: 4,
+      onPress: () => Alert.alert('Em breve', 'CRUD de Perfis em desenvolvimento.'),
+    },
+    {
+      label: 'CRUD Cidades',
+      icon: 'business-outline',
+      cor: '#F39C12',
+      count: 27,
+      onPress: () => Alert.alert('Em breve', 'CRUD de Cidades em desenvolvimento.'),
+    },
+    {
+      label: 'CRUD UF',
+      icon: 'map-outline',
+      cor: '#3498DB',
+      count: 27,
+      onPress: () => Alert.alert('Em breve', 'CRUD de UFs em desenvolvimento.'),
+    },
+  ] as const;
 
   return (
     <View style={styles.container}>
@@ -117,7 +182,7 @@ export default function DashboardScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.statsGrid}>
             {[
-              { label: 'Notícias', valor: NOTICIAS.length, icon: 'newspaper-outline', cor: '#4A90D9' },
+              { label: 'Notícias', valor: noticias.length, icon: 'newspaper-outline', cor: '#4A90D9' },
               { label: 'Usuários', valor: usuarios.length, icon: 'people-outline', cor: '#E94560' },
               { label: 'Leituras', valor: totalLeituras.toLocaleString('pt-BR'), icon: 'eye-outline', cor: '#2ECC71' },
               { label: 'Comentários', valor: totalComentarios, icon: 'chatbubble-outline', cor: '#F0A500' },
@@ -131,15 +196,8 @@ export default function DashboardScreen() {
           </View>
 
           <Text style={styles.secaoTitulo}>CRUDs disponíveis</Text>
-          {[
-            { label: 'CRUD Notícias', icon: 'newspaper-outline', cor: '#4A90D9', count: NOTICIAS.length },
-            { label: 'CRUD Usuários', icon: 'people-outline', cor: '#E94560', count: usuarios.length },
-            { label: 'CRUD Tags', icon: 'pricetags-outline', cor: '#9B59B6', count: TAGS_CRUD.length },
-            { label: 'CRUD Perfis', icon: 'ribbon-outline', cor: '#2ECC71', count: 4 },
-            { label: 'CRUD Cidades', icon: 'business-outline', cor: '#F39C12', count: 27 },
-            { label: 'CRUD UF', icon: 'map-outline', cor: '#3498DB', count: 27 },
-          ].map((item) => (
-            <TouchableOpacity key={item.label} style={styles.crudRow} activeOpacity={0.8}>
+          {CRUDS.map((item) => (
+            <TouchableOpacity key={item.label} style={styles.crudRow} onPress={item.onPress} activeOpacity={0.8}>
               <View style={[styles.crudIcon, { backgroundColor: item.cor + '22' }]}>
                 <Ionicons name={item.icon as any} size={20} color={item.cor} />
               </View>
@@ -202,19 +260,19 @@ export default function DashboardScreen() {
       {/* TAGS */}
       {aba === 'tags' && (
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <TouchableOpacity style={styles.addBtn}>
+          <TouchableOpacity style={styles.addBtn} onPress={() => setModalNovaTag(true)}>
             <Ionicons name="add-circle-outline" size={18} color="#fff" />
             <Text style={styles.addBtnTexto}>Nova Tag</Text>
           </TouchableOpacity>
-          {TAGS_CRUD.map((tag) => (
+          {tags.map((tag) => (
             <View key={tag.id} style={styles.tagCard}>
               <View style={[styles.tagDot, { backgroundColor: tag.cor }]} />
               <Text style={styles.tagNome}>{tag.nome}</Text>
               <Text style={styles.tagUsos}>{tag.usos} usos</Text>
-              <TouchableOpacity style={styles.iconBtn}>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => abrirEdicaoTag(tag.id, tag.nome)}>
                 <Ionicons name="pencil-outline" size={18} color="#888" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn}>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => handleExcluirTag(tag.id, tag.nome)}>
                 <Ionicons name="trash-outline" size={18} color="#E94560" />
               </TouchableOpacity>
             </View>
@@ -222,40 +280,55 @@ export default function DashboardScreen() {
         </ScrollView>
       )}
 
-      {/* COMENTÁRIOS */}
-      {aba === 'comentarios' && (
-        <FlatList
-          data={COMENTARIOS}
-          keyExtractor={(c) => String(c.id)}
-          contentContainerStyle={styles.lista}
-          renderItem={({ item }) => {
-            const cor = COR_COMMENT_STATUS[item.status] ?? '#888';
-            return (
-              <View style={styles.comentarioCard}>
-                <View style={styles.comentarioTopo}>
-                  <Text style={styles.comentarioAutor}>{item.autor}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: cor + '22', borderColor: cor }]}>
-                    <Text style={[styles.statusTexto, { color: cor }]}>{item.status}</Text>
-                  </View>
-                </View>
-                <Text style={styles.comentarioTexto}>"{item.texto}"</Text>
-                <Text style={styles.comentarioNoticia}>em: {item.noticia}</Text>
-                <View style={styles.comentarioAcoes}>
-                  <TouchableOpacity style={styles.acaoBotao}>
-                    <Ionicons name="checkmark-outline" size={15} color="#2ECC71" />
-                    <Text style={[styles.acaoTexto, { color: '#2ECC71' }]}>Aprovar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.acaoBotao}>
-                    <Ionicons name="ban-outline" size={15} color="#E74C3C" />
-                    <Text style={[styles.acaoTexto, { color: '#E74C3C' }]}>Remover</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          }}
-          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-        />
-      )}
+      {/* Modal nova tag */}
+      <Modal visible={modalNovaTag} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitulo}>Nova Tag</Text>
+            <Text style={styles.modalLabel}>Nome da tag</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={novaTagNome}
+              onChangeText={setNovaTagNome}
+              placeholder="Ex: Esportes"
+              placeholderTextColor="#555"
+              autoCapitalize="words"
+              autoFocus
+            />
+            <TouchableOpacity style={styles.modalBotaoSalvar} onPress={handleSalvarNovaTag} activeOpacity={0.8}>
+              <Text style={styles.modalBotaoTexto}>Criar tag</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalBotaoCancelar} onPress={() => { setModalNovaTag(false); setNovaTagNome(''); }} activeOpacity={0.8}>
+              <Text style={styles.modalBotaoCancelarTexto}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal editar tag */}
+      <Modal visible={tagEditandoId !== null} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitulo}>Editar Tag</Text>
+            <Text style={styles.modalLabel}>Nome da tag</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={tagEditandoNome}
+              onChangeText={setTagEditandoNome}
+              placeholder="Nome da tag"
+              placeholderTextColor="#555"
+              autoCapitalize="words"
+              autoFocus
+            />
+            <TouchableOpacity style={styles.modalBotaoSalvar} onPress={salvarEdicaoTag} activeOpacity={0.8}>
+              <Text style={styles.modalBotaoTexto}>Salvar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalBotaoCancelar} onPress={() => setTagEditandoId(null)} activeOpacity={0.8}>
+              <Text style={styles.modalBotaoCancelarTexto}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -388,39 +461,55 @@ const styles = StyleSheet.create({
   tagDot: { width: 12, height: 12, borderRadius: 6 },
   tagNome: { flex: 1, color: '#fff', fontSize: 15 },
   tagUsos: { color: '#666', fontSize: 12 },
-  comentarioCard: {
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: '#000000aa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalBox: {
     backgroundColor: '#16213E',
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
     borderWidth: 1,
     borderColor: '#0F3460',
   },
-  comentarioTopo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  modalTitulo: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalLabel: {
+    color: '#E94560',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginBottom: 6,
   },
-  comentarioAutor: { color: '#E94560', fontSize: 13, fontWeight: '600' },
-  statusBadge: {
-    borderRadius: 6,
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  statusTexto: { fontSize: 10, fontWeight: '600', textTransform: 'capitalize' },
-  comentarioTexto: { color: '#ccc', fontSize: 13, lineHeight: 18, marginBottom: 4 },
-  comentarioNoticia: { color: '#555', fontSize: 11, marginBottom: 10 },
-  comentarioAcoes: { flexDirection: 'row', gap: 8 },
-  acaoBotao: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 7,
-    borderRadius: 8,
+  modalInput: {
     backgroundColor: '#1A1A2E',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#0F3460',
+    color: '#fff',
+    fontSize: 15,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    marginBottom: 16,
   },
-  acaoTexto: { fontSize: 13 },
+  modalBotaoSalvar: {
+    backgroundColor: '#E94560',
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalBotaoTexto: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  modalBotaoCancelar: { borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
+  modalBotaoCancelarTexto: { color: '#888', fontSize: 14 },
 });

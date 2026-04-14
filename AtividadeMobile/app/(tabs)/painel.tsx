@@ -1,15 +1,19 @@
 import {
   Alert,
   FlatList,
+  Modal,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { NOTICIAS, Noticia } from './index';
+import { useAppStore } from '../context/appStore';
+import type { Noticia } from '../context/appStore';
 
 const COR_TAG: Record<string, string> = {
   Cultura: '#9B59B6',
@@ -23,26 +27,19 @@ type Filtro = 'todos' | 'publicadas' | 'rascunhos';
 
 export default function PainelScreen() {
   const router = useRouter();
-  const [noticias, setNoticias] = useState<Noticia[]>(NOTICIAS);
+  const { noticias, updateNoticia, tags } = useAppStore();
   const [filtro, setFiltro] = useState<Filtro>('todos');
+  const [noticiaEditando, setNoticiaEditando] = useState<Noticia | null>(null);
+  const [tituloEd, setTituloEd] = useState('');
+  const [resumoEd, setResumoEd] = useState('');
+  const [tagEd, setTagEd] = useState('');
+  const [ufEd, setUfEd] = useState('');
 
   const filtradas = noticias.filter((n) => {
     if (filtro === 'publicadas') return n.publicada;
     if (filtro === 'rascunhos') return !n.publicada;
     return true;
   });
-
-  function togglePublicar(id: string) {
-    setNoticias((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, publicada: !n.publicada } : n))
-    );
-  }
-
-  function handleEditar(n: Noticia) {
-    Alert.alert('Editar notícia', `Abrindo editor para:\n"${n.titulo}"`, [
-      { text: 'OK' },
-    ]);
-  }
 
   const publicadas = noticias.filter((n) => n.publicada).length;
   const rascunhos = noticias.filter((n) => !n.publicada).length;
@@ -52,6 +49,29 @@ export default function PainelScreen() {
     { key: 'publicadas', label: `Publicadas (${publicadas})` },
     { key: 'rascunhos', label: `Rascunhos (${rascunhos})` },
   ];
+
+  function abrirEdicao(n: Noticia) {
+    setNoticiaEditando(n);
+    setTituloEd(n.titulo);
+    setResumoEd(n.resumo);
+    setTagEd(n.tag);
+    setUfEd(n.uf);
+  }
+
+  function salvarEdicao() {
+    if (!noticiaEditando) return;
+    if (!tituloEd.trim()) {
+      Alert.alert('Atenção', 'O título não pode estar vazio.');
+      return;
+    }
+    updateNoticia(noticiaEditando.id, {
+      titulo: tituloEd.trim(),
+      resumo: resumoEd.trim(),
+      tag: tagEd || noticiaEditando.tag,
+      uf: ufEd || noticiaEditando.uf,
+    });
+    setNoticiaEditando(null);
+  }
 
   return (
     <View style={styles.container}>
@@ -129,7 +149,7 @@ export default function PainelScreen() {
 
                 <TouchableOpacity
                   style={styles.acaoBotao}
-                  onPress={() => handleEditar(item)}
+                  onPress={() => abrirEdicao(item)}
                 >
                   <Ionicons name="pencil-outline" size={15} color="#E94560" />
                   <Text style={[styles.acaoTexto, { color: '#E94560' }]}>Editar</Text>
@@ -140,7 +160,7 @@ export default function PainelScreen() {
                     styles.acaoBotaoPublicar,
                     { backgroundColor: item.publicada ? '#F0A50022' : '#2ECC7122', borderColor: item.publicada ? '#F0A500' : '#2ECC71' },
                   ]}
-                  onPress={() => togglePublicar(item.id)}
+                  onPress={() => updateNoticia(item.id, { publicada: !item.publicada })}
                 >
                   <Ionicons
                     name={item.publicada ? 'eye-off-outline' : 'cloud-upload-outline'}
@@ -158,6 +178,77 @@ export default function PainelScreen() {
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         contentContainerStyle={styles.lista}
       />
+
+      {/* Modal de edição */}
+      <Modal visible={!!noticiaEditando} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled">
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitulo}>Editar Notícia</Text>
+
+              <Text style={styles.modalLabel}>Título *</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={tituloEd}
+                onChangeText={setTituloEd}
+                placeholder="Título da notícia"
+                placeholderTextColor="#555"
+                autoCapitalize="sentences"
+              />
+
+              <Text style={styles.modalLabel}>Resumo</Text>
+              <TextInput
+                style={[styles.modalInput, { height: 80 }]}
+                value={resumoEd}
+                onChangeText={setResumoEd}
+                placeholder="Resumo da notícia"
+                placeholderTextColor="#555"
+                multiline
+                textAlignVertical="top"
+              />
+
+              <Text style={styles.modalLabel}>Categoria</Text>
+              <View style={styles.chips}>
+                {tags.map((t) => {
+                  const ativo = tagEd === t.nome;
+                  return (
+                    <TouchableOpacity
+                      key={t.id}
+                      style={[styles.chip, { borderColor: t.cor, backgroundColor: ativo ? t.cor : 'transparent' }]}
+                      onPress={() => setTagEd(ativo ? '' : t.nome)}
+                    >
+                      <Text style={[styles.chipTexto, { color: ativo ? '#fff' : t.cor }]}>{t.nome}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={[styles.modalLabel, { marginTop: 12 }]}>Estado (UF)</Text>
+              <View style={styles.chips}>
+                {['SP', 'RJ', 'MG', 'RS', 'PR', 'BA', 'CE', 'PE', 'GO', 'DF'].map((u) => {
+                  const ativo = ufEd === u;
+                  return (
+                    <TouchableOpacity
+                      key={u}
+                      style={[styles.chipUf, ativo && styles.chipUfAtivo]}
+                      onPress={() => setUfEd(ativo ? '' : u)}
+                    >
+                      <Text style={[styles.chipUfTexto, ativo && styles.chipUfTextoAtivo]}>{u}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <TouchableOpacity style={[styles.modalBotao, { marginTop: 20 }]} onPress={salvarEdicao} activeOpacity={0.8}>
+                <Text style={styles.modalBotaoTexto}>Salvar alterações</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalBotaoCancelar} onPress={() => setNoticiaEditando(null)} activeOpacity={0.8}>
+                <Text style={styles.modalBotaoCancelarTexto}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -248,4 +339,67 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   acaoTexto: { fontSize: 12, fontWeight: '500' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: '#000000bb',
+    justifyContent: 'center',
+  },
+  modalScroll: { flexGrow: 1, justifyContent: 'center', padding: 20 },
+  modalBox: {
+    backgroundColor: '#16213E',
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#0F3460',
+  },
+  modalTitulo: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalLabel: {
+    color: '#E94560',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  modalInput: {
+    backgroundColor: '#1A1A2E',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#0F3460',
+    color: '#fff',
+    fontSize: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    marginBottom: 16,
+  },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  chip: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
+  chipTexto: { fontSize: 12, fontWeight: '500' },
+  chipUf: {
+    borderWidth: 1,
+    borderColor: '#0F3460',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#1A1A2E',
+  },
+  chipUfAtivo: { backgroundColor: '#E94560', borderColor: '#E94560' },
+  chipUfTexto: { color: '#888', fontSize: 12 },
+  chipUfTextoAtivo: { color: '#fff', fontWeight: '600' },
+  modalBotao: {
+    backgroundColor: '#E94560',
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalBotaoTexto: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  modalBotaoCancelar: { borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
+  modalBotaoCancelarTexto: { color: '#888', fontSize: 14 },
 });

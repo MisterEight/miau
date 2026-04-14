@@ -9,7 +9,7 @@ import {
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { NOTICIAS } from './index';
+import { useAppStore } from '../context/appStore';
 
 const UFS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA',
@@ -29,12 +29,13 @@ const COR_TAG: Record<string, string> = {
 
 export default function BuscarScreen() {
   const router = useRouter();
+  const { noticias } = useAppStore();
   const [texto, setTexto] = useState('');
   const [ufSelecionada, setUfSelecionada] = useState('');
   const [tagSelecionada, setTagSelecionada] = useState('');
   const [abaAtiva, setAbaAtiva] = useState<'uf' | 'tag'>('tag');
 
-  const resultados = NOTICIAS.filter((n) => {
+  const resultados = noticias.filter((n) => {
     if (!n.publicada) return false;
     const matchTexto = texto.trim()
       ? n.titulo.toLowerCase().includes(texto.toLowerCase()) ||
