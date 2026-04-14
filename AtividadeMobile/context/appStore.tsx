@@ -113,7 +113,7 @@ const CORES_TAG = ['#3498DB', '#2ECC71', '#E74C3C', '#9B59B6', '#F39C12', '#F0A5
 
 type AppStoreContextType = {
   noticias: Noticia[];
-  addNoticia: (n: Omit<Noticia, 'id' | 'leituras' | 'comentarios'>) => void;
+  addNoticia: (n: Omit<Noticia, 'id' | 'leituras' | 'comentarios'>) => string;
   updateNoticia: (id: string, changes: Partial<Noticia>) => void;
   deleteNoticia: (id: string) => void;
   getComentarios: (noticiaId: string) => Comentario[];
@@ -126,7 +126,7 @@ type AppStoreContextType = {
 
 const AppStoreContext = createContext<AppStoreContextType>({
   noticias: [],
-  addNoticia: () => {},
+  addNoticia: () => '',
   updateNoticia: () => {},
   deleteNoticia: () => {},
   getComentarios: () => [],
@@ -142,9 +142,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [comentarios, setComentarios] = useState<Record<string, Comentario[]>>(COMENTARIOS_INICIAL);
   const [tags, setTags] = useState<Tag[]>(TAGS_INICIAL);
 
-  function addNoticia(n: Omit<Noticia, 'id' | 'leituras' | 'comentarios'>) {
-    const nova: Noticia = { ...n, id: String(Date.now()), leituras: 0, comentarios: 0 };
+  function addNoticia(n: Omit<Noticia, 'id' | 'leituras' | 'comentarios'>): string {
+    const id = String(Date.now());
+    const nova: Noticia = { ...n, id, leituras: 0, comentarios: 0 };
     setNoticias((prev) => [nova, ...prev]);
+    return id;
   }
 
   function updateNoticia(id: string, changes: Partial<Noticia>) {

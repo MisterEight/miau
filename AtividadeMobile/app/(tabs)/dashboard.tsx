@@ -1,5 +1,4 @@
 import {
-  Alert,
   FlatList,
   Modal,
   ScrollView,
@@ -55,6 +54,12 @@ export default function DashboardScreen() {
   const [tagEditandoId, setTagEditandoId] = useState<number | null>(null);
   const [tagEditandoNome, setTagEditandoNome] = useState('');
 
+  // Modal confirmar exclusão de usuário
+  const [usuarioExcluindo, setUsuarioExcluindo] = useState<Usuario | null>(null);
+
+  // Modal confirmar exclusão de tag
+  const [tagExcluindo, setTagExcluindo] = useState<{ id: number; nome: string } | null>(null);
+
   const totalLeituras = noticias.reduce((s, n) => s + n.leituras, 0);
   const totalComentarios = noticias.reduce((s, n) => s + n.comentarios, 0);
 
@@ -70,22 +75,14 @@ export default function DashboardScreen() {
     );
   }
 
-  function handleExcluirUsuario(id: number) {
-    Alert.alert('Excluir usuário', 'Deseja remover este usuário do sistema?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Excluir',
-        style: 'destructive',
-        onPress: () => setUsuarios((prev) => prev.filter((u) => u.id !== id)),
-      },
-    ]);
+  function confirmarExcluirUsuario() {
+    if (!usuarioExcluindo) return;
+    setUsuarios((prev) => prev.filter((u) => u.id !== usuarioExcluindo.id));
+    setUsuarioExcluindo(null);
   }
 
   function handleSalvarNovaTag() {
-    if (!novaTagNome.trim()) {
-      Alert.alert('Atenção', 'Digite um nome para a tag.');
-      return;
-    }
+    if (!novaTagNome.trim()) return;
     addTag(novaTagNome.trim());
     setNovaTagNome('');
     setModalNovaTag(false);
@@ -103,11 +100,10 @@ export default function DashboardScreen() {
     setTagEditandoNome('');
   }
 
-  function handleExcluirTag(id: number, nome: string) {
-    Alert.alert('Excluir tag', `Deseja remover a tag "${nome}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Excluir', style: 'destructive', onPress: () => deleteTag(id) },
-    ]);
+  function confirmarExcluirTag() {
+    if (!tagExcluindo) return;
+    deleteTag(tagExcluindo.id);
+    setTagExcluindo(null);
   }
 
   const CRUDS = [
@@ -137,21 +133,21 @@ export default function DashboardScreen() {
       icon: 'ribbon-outline',
       cor: '#2ECC71',
       count: 4,
-      onPress: () => Alert.alert('Em breve', 'CRUD de Perfis em desenvolvimento.'),
+      onPress: () => router.push('/crud-perfis'),
     },
     {
       label: 'CRUD Cidades',
       icon: 'business-outline',
       cor: '#F39C12',
-      count: 27,
-      onPress: () => Alert.alert('Em breve', 'CRUD de Cidades em desenvolvimento.'),
+      count: 10,
+      onPress: () => router.push('/crud-cidades'),
     },
     {
       label: 'CRUD UF',
       icon: 'map-outline',
       cor: '#3498DB',
       count: 27,
-      onPress: () => Alert.alert('Em breve', 'CRUD de UFs em desenvolvimento.'),
+      onPress: () => router.push('/crud-uf'),
     },
   ] as const;
 
@@ -246,7 +242,7 @@ export default function DashboardScreen() {
                       color={item.ativo ? '#F0A500' : '#2ECC71'}
                     />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleExcluirUsuario(item.id)} style={styles.iconBtn}>
+                  <TouchableOpacity onPress={() => setUsuarioExcluindo(item)} style={styles.iconBtn}>
                     <Ionicons name="trash-outline" size={20} color="#E94560" />
                   </TouchableOpacity>
                 </View>
@@ -272,7 +268,7 @@ export default function DashboardScreen() {
               <TouchableOpacity style={styles.iconBtn} onPress={() => abrirEdicaoTag(tag.id, tag.nome)}>
                 <Ionicons name="pencil-outline" size={18} color="#888" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn} onPress={() => handleExcluirTag(tag.id, tag.nome)}>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => setTagExcluindo({ id: tag.id, nome: tag.nome })}>
                 <Ionicons name="trash-outline" size={18} color="#E94560" />
               </TouchableOpacity>
             </View>
@@ -324,6 +320,50 @@ export default function DashboardScreen() {
               <Text style={styles.modalBotaoTexto}>Salvar</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalBotaoCancelar} onPress={() => setTagEditandoId(null)} activeOpacity={0.8}>
+              <Text style={styles.modalBotaoCancelarTexto}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal confirmar exclusão de usuário */}
+      <Modal visible={usuarioExcluindo !== null} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalIcone}>
+              <Ionicons name="warning-outline" size={32} color="#E94560" />
+            </View>
+            <Text style={styles.modalTitulo}>Excluir usuário</Text>
+            <Text style={styles.modalSubtitulo}>
+              Deseja remover <Text style={{ color: '#fff', fontWeight: '600' }}>{usuarioExcluindo?.nome}</Text> do sistema?
+            </Text>
+            <TouchableOpacity style={styles.modalBotaoExcluir} onPress={confirmarExcluirUsuario} activeOpacity={0.8}>
+              <Ionicons name="trash-outline" size={16} color="#fff" />
+              <Text style={styles.modalBotaoTexto}>Excluir</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalBotaoCancelar} onPress={() => setUsuarioExcluindo(null)} activeOpacity={0.8}>
+              <Text style={styles.modalBotaoCancelarTexto}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal confirmar exclusão de tag */}
+      <Modal visible={tagExcluindo !== null} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalIcone}>
+              <Ionicons name="warning-outline" size={32} color="#E94560" />
+            </View>
+            <Text style={styles.modalTitulo}>Excluir tag</Text>
+            <Text style={styles.modalSubtitulo}>
+              Deseja remover a tag <Text style={{ color: '#fff', fontWeight: '600' }}>"{tagExcluindo?.nome}"</Text>?
+            </Text>
+            <TouchableOpacity style={styles.modalBotaoExcluir} onPress={confirmarExcluirTag} activeOpacity={0.8}>
+              <Ionicons name="trash-outline" size={16} color="#fff" />
+              <Text style={styles.modalBotaoTexto}>Excluir</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalBotaoCancelar} onPress={() => setTagExcluindo(null)} activeOpacity={0.8}>
               <Text style={styles.modalBotaoCancelarTexto}>Cancelar</Text>
             </TouchableOpacity>
           </View>
@@ -463,7 +503,7 @@ const styles = StyleSheet.create({
   tagUsos: { color: '#666', fontSize: 12 },
   modalOverlay: {
     flex: 1,
-    backgroundColor: '#000000aa',
+    backgroundColor: '#000000bb',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -476,12 +516,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#0F3460',
   },
+  modalIcone: { alignItems: 'center', marginBottom: 12 },
   modalTitulo: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 8,
     textAlign: 'center',
+  },
+  modalSubtitulo: {
+    color: '#888',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
   },
   modalLabel: {
     color: '#E94560',
@@ -508,6 +556,16 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     alignItems: 'center',
     marginBottom: 8,
+  },
+  modalBotaoExcluir: {
+    backgroundColor: '#E94560',
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   modalBotaoTexto: { color: '#fff', fontSize: 15, fontWeight: '600' },
   modalBotaoCancelar: { borderRadius: 10, paddingVertical: 11, alignItems: 'center' },

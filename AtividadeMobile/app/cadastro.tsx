@@ -1,5 +1,4 @@
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import {
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useAuth } from './context/auth';
 
 const UFS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA',
@@ -19,6 +19,7 @@ const UFS = [
 
 export default function CadastroScreen() {
   const router = useRouter();
+  const { cadastrar } = useAuth();
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
@@ -26,19 +27,44 @@ export default function CadastroScreen() {
   const [uf, setUf] = useState('');
   const [mostrarUfs, setMostrarUfs] = useState(false);
   const [verSenha, setVerSenha] = useState(false);
+  const [erro, setErro] = useState('');
+  const [sucesso, setSucesso] = useState(false);
 
   function handleCadastro() {
+    setErro('');
     if (!nome.trim() || !email.trim() || !senha.trim()) {
-      Alert.alert('Atenção', 'Preencha todos os campos obrigatórios.');
+      setErro('Preencha todos os campos obrigatórios.');
       return;
     }
     if (senha !== confirmar) {
-      Alert.alert('Atenção', 'As senhas não coincidem.');
+      setErro('As senhas não coincidem.');
       return;
     }
-    Alert.alert('Conta criada!', `Bem-vindo, ${nome}!\nSeu cadastro foi realizado.`, [
-      { text: 'OK', onPress: () => router.replace('/login') },
-    ]);
+    const resultado = cadastrar(nome.trim(), email.trim(), senha, uf);
+    console.log(resultado)
+    if (!resultado.ok) {
+      setErro(resultado.erro ?? 'Erro ao cadastrar.');
+      return;
+    }
+    setSucesso(true);
+  }
+
+  if (sucesso) {
+    return (
+      <View style={styles.sucessoContainer}>
+        <View style={styles.sucessoIcone}>
+          <Ionicons name="checkmark-circle" size={64} color="#2ECC71" />
+        </View>
+        <Text style={styles.sucessoTitulo}>Conta criada!</Text>
+        <Text style={styles.sucessoSub}>
+          Bem-vindo, {nome}!{'\n'}Faça login com seu e-mail e senha.
+        </Text>
+        <TouchableOpacity style={styles.sucessoBotao} onPress={() => router.replace('/login')} activeOpacity={0.8}>
+          <Ionicons name="log-in-outline" size={18} color="#fff" />
+          <Text style={styles.sucessoBotaoTexto}>Ir para Login</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   return (
@@ -55,12 +81,19 @@ export default function CadastroScreen() {
       <Text style={styles.titulo}>Criar Conta</Text>
       <Text style={styles.sub}>Preencha os dados para se cadastrar</Text>
 
+      {!!erro && (
+        <View style={styles.erroBox}>
+          <Ionicons name="alert-circle-outline" size={16} color="#E94560" />
+          <Text style={styles.erroTexto}>{erro}</Text>
+        </View>
+      )}
+
       <View style={styles.campo}>
         <Text style={styles.label}>Nome completo *</Text>
         <TextInput
           style={styles.input}
           value={nome}
-          onChangeText={setNome}
+          onChangeText={(t) => { setNome(t); setErro(''); }}
           placeholder="Ex: Leonardo Alcântara"
           placeholderTextColor="#555"
           autoCapitalize="words"
@@ -72,7 +105,7 @@ export default function CadastroScreen() {
         <TextInput
           style={styles.input}
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(t) => { setEmail(t); setErro(''); }}
           placeholder="Ex: leo@email.com"
           placeholderTextColor="#555"
           keyboardType="email-address"
@@ -116,7 +149,7 @@ export default function CadastroScreen() {
           <TextInput
             style={[styles.input, { flex: 1, marginBottom: 0 }]}
             value={senha}
-            onChangeText={setSenha}
+            onChangeText={(t) => { setSenha(t); setErro(''); }}
             placeholder="Mín. 6 caracteres"
             placeholderTextColor="#555"
             secureTextEntry={!verSenha}
@@ -132,7 +165,7 @@ export default function CadastroScreen() {
         <TextInput
           style={styles.input}
           value={confirmar}
-          onChangeText={setConfirmar}
+          onChangeText={(t) => { setConfirmar(t); setErro(''); }}
           placeholder="Repita a senha"
           placeholderTextColor="#555"
           secureTextEntry={!verSenha}
@@ -157,7 +190,19 @@ const styles = StyleSheet.create({
   voltar: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 28 },
   voltarTexto: { color: '#E94560', fontSize: 14 },
   titulo: { color: '#fff', fontSize: 26, fontWeight: 'bold', marginBottom: 4 },
-  sub: { color: '#888', fontSize: 13, marginBottom: 28 },
+  sub: { color: '#888', fontSize: 13, marginBottom: 20 },
+  erroBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#E9456015',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E9456044',
+  },
+  erroTexto: { color: '#E94560', fontSize: 13, flex: 1 },
   campo: { marginBottom: 18 },
   label: {
     color: '#E94560',
@@ -198,12 +243,7 @@ const styles = StyleSheet.create({
   },
   seletorTexto: { color: '#fff', fontSize: 15 },
   seletorPlaceholder: { color: '#555', fontSize: 15 },
-  ufGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
-  },
+  ufGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   ufChip: {
     borderWidth: 1,
     borderColor: '#0F3460',
@@ -228,4 +268,25 @@ const styles = StyleSheet.create({
   botaoTexto: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   linkLogin: { alignItems: 'center', marginTop: 16 },
   linkLoginTexto: { color: '#888', fontSize: 14 },
+  // Tela de sucesso
+  sucessoContainer: {
+    flex: 1,
+    backgroundColor: '#1A1A2E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  sucessoIcone: { marginBottom: 24 },
+  sucessoTitulo: { color: '#fff', fontSize: 26, fontWeight: 'bold', marginBottom: 12, textAlign: 'center' },
+  sucessoSub: { color: '#888', fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
+  sucessoBotao: {
+    backgroundColor: '#E94560',
+    borderRadius: 12,
+    paddingVertical: 15,
+    paddingHorizontal: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sucessoBotaoTexto: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

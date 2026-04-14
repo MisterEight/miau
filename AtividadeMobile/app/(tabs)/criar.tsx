@@ -1,5 +1,4 @@
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -33,10 +32,20 @@ export default function CriarScreen() {
   const [tag, setTag] = useState('');
   const [uf, setUf] = useState('');
   const [publicar, setPublicar] = useState(false);
+  const [erro, setErro] = useState('');
+
+  // Estado de sucesso: guarda o ID e o modo (publicado ou rascunho)
+  const [noticiaId, setNoticiaId] = useState<string | null>(null);
+  const [foiPublicada, setFoiPublicada] = useState(false);
 
   function handleSalvar() {
-    if (!titulo.trim() || !conteudo.trim()) {
-      Alert.alert('Atenção', 'Título e conteúdo são obrigatórios.');
+    setErro('');
+    if (!titulo.trim()) {
+      setErro('O título é obrigatório.');
+      return;
+    }
+    if (!conteudo.trim()) {
+      setErro('O conteúdo é obrigatório.');
       return;
     }
 
@@ -44,7 +53,7 @@ export default function CriarScreen() {
     const hoje = new Date();
     const data = hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
 
-    addNoticia({
+    const id = addNoticia({
       titulo: titulo.trim(),
       resumo: resumo.trim() || titulo.trim(),
       autor,
@@ -54,22 +63,8 @@ export default function CriarScreen() {
       publicada: publicar,
     });
 
-    Alert.alert(
-      publicar ? 'Artigo publicado!' : 'Rascunho salvo!',
-      publicar
-        ? `"${titulo}" foi publicado com sucesso.`
-        : `"${titulo}" foi salvo como rascunho em Minhas Notícias.`,
-      [
-        {
-          text: 'Ver minhas notícias',
-          onPress: () => {
-            limpar();
-            router.push('/(tabs)/minhas-noticias');
-          },
-        },
-        { text: 'Criar outro', onPress: limpar },
-      ]
-    );
+    setNoticiaId(id);
+    setFoiPublicada(publicar);
   }
 
   function limpar() {
@@ -79,6 +74,61 @@ export default function CriarScreen() {
     setTag('');
     setUf('');
     setPublicar(false);
+    setErro('');
+    setNoticiaId(null);
+  }
+
+  // Tela de sucesso
+  if (noticiaId) {
+    return (
+      <View style={styles.sucessoContainer}>
+        <View style={styles.sucessoIcone}>
+          <Ionicons
+            name={foiPublicada ? 'checkmark-circle' : 'save'}
+            size={64}
+            color={foiPublicada ? '#2ECC71' : '#4A90D9'}
+          />
+        </View>
+        <Text style={styles.sucessoTitulo}>
+          {foiPublicada ? 'Artigo publicado!' : 'Rascunho salvo!'}
+        </Text>
+        <Text style={styles.sucessoSub} numberOfLines={3}>
+          "{titulo}"
+        </Text>
+        <Text style={styles.sucessoDesc}>
+          {foiPublicada
+            ? 'Seu artigo já está visível para todos os leitores.'
+            : 'Você pode publicá-lo depois em Minhas Notícias.'}
+        </Text>
+
+        {foiPublicada && (
+          <TouchableOpacity
+            style={styles.botaoPrimario}
+            onPress={() => router.push(`/noticia/${noticiaId}`)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="newspaper-outline" size={18} color="#fff" />
+            <Text style={styles.botaoPrimarioTexto}>Ver artigo</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={foiPublicada ? styles.botaoSecundario : styles.botaoPrimario}
+          onPress={() => router.push('/(tabs)/minhas-noticias')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="list-outline" size={18} color={foiPublicada ? '#888' : '#fff'} />
+          <Text style={foiPublicada ? styles.botaoSecundarioTexto : styles.botaoPrimarioTexto}>
+            Minhas notícias
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.botaoLimpar} onPress={limpar} activeOpacity={0.8}>
+          <Ionicons name="add-outline" size={16} color="#888" />
+          <Text style={styles.botaoLimparTexto}>Criar outro artigo</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   return (
@@ -89,13 +139,20 @@ export default function CriarScreen() {
     >
       <Text style={styles.heading}>Novo Artigo</Text>
 
+      {!!erro && (
+        <View style={styles.erroBox}>
+          <Ionicons name="alert-circle-outline" size={16} color="#E94560" />
+          <Text style={styles.erroTexto}>{erro}</Text>
+        </View>
+      )}
+
       {/* Título */}
       <View style={styles.campo}>
         <Text style={styles.label}>Título *</Text>
         <TextInput
           style={styles.input}
           value={titulo}
-          onChangeText={setTitulo}
+          onChangeText={(t) => { setTitulo(t); setErro(''); }}
           placeholder="Digite o título do artigo..."
           placeholderTextColor="#555"
           autoCapitalize="sentences"
@@ -164,7 +221,7 @@ export default function CriarScreen() {
         <TextInput
           style={[styles.input, styles.inputGrande]}
           value={conteudo}
-          onChangeText={setConteudo}
+          onChangeText={(t) => { setConteudo(t); setErro(''); }}
           placeholder="Escreva o artigo completo aqui..."
           placeholderTextColor="#555"
           multiline
@@ -199,7 +256,7 @@ export default function CriarScreen() {
         <Text style={styles.botaoTexto}>{publicar ? 'Publicar Artigo' : 'Salvar Rascunho'}</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.botaoLimpar} onPress={limpar} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.botaoLimparForm} onPress={limpar} activeOpacity={0.8}>
         <Ionicons name="refresh-outline" size={16} color="#888" />
         <Text style={styles.botaoLimparTexto}>Limpar formulário</Text>
       </TouchableOpacity>
@@ -211,6 +268,18 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1A1A2E' },
   content: { padding: 20, paddingBottom: 48 },
   heading: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginBottom: 20 },
+  erroBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#E9456015',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E9456044',
+  },
+  erroTexto: { color: '#E94560', fontSize: 13, flex: 1 },
   campo: { marginBottom: 20 },
   label: {
     color: '#E94560',
@@ -293,7 +362,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   botaoTexto: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  botaoLimpar: {
+  botaoLimparForm: {
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
@@ -304,4 +373,57 @@ const styles = StyleSheet.create({
     borderColor: '#0F3460',
   },
   botaoLimparTexto: { color: '#888', fontSize: 14 },
+  // Tela de sucesso
+  sucessoContainer: {
+    flex: 1,
+    backgroundColor: '#1A1A2E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+    gap: 12,
+  },
+  sucessoIcone: { marginBottom: 8 },
+  sucessoTitulo: { color: '#fff', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
+  sucessoSub: {
+    color: '#E94560',
+    fontSize: 15,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: 4,
+  },
+  sucessoDesc: { color: '#666', fontSize: 13, textAlign: 'center', marginBottom: 16 },
+  botaoPrimario: {
+    backgroundColor: '#E94560',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  botaoPrimarioTexto: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  botaoSecundario: {
+    backgroundColor: '#16213E',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#0F3460',
+  },
+  botaoSecundarioTexto: { color: '#888', fontSize: 15 },
+  botaoLimpar: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
 });
