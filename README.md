@@ -1,10 +1,10 @@
-# Miau News — Atividade de Desenvolvimento Mobile
+# Miau News - Atividade de Desenvolvimento Mobile
 
 Aplicativo de notícias desenvolvido com React Native, Expo e TypeScript.
 
 ---
 
-## Entrega 3 — Persistência Local (SQLite + Drizzle)
+## Entrega 4 - API REST + Axios
 
 ### Pré-requisitos
 
@@ -14,24 +14,46 @@ Aplicativo de notícias desenvolvido com React Native, Expo e TypeScript.
 
 ### Como executar
 
+**1. Iniciar a API (em um terminal):**
+
+```bash
+cd api
+npm install
+npm run dev
+```
+
+A API ficará disponível em `http://localhost:3000`.
+
+**2. Iniciar o app mobile (em outro terminal):**
+
 ```bash
 cd AtividadeMobile
 npm install
 npx expo start
 ```
 
-Escaneie o QR Code com o app **Expo Go** (Android) ou com a câmera (iOS).
+> Se usar dispositivo físico, edite `AtividadeMobile/context/api.ts` e troque
+> `localhost` pelo IP da sua máquina na rede local (ex: `192.168.0.10`).
+
+### Endpoints da API
+
+| Método | Rota            | Ação              |
+|--------|-----------------|-------------------|
+| GET    | /noticias       | Listar todas      |
+| GET    | /noticias/:id   | Buscar por id     |
+| POST   | /noticias       | Criar             |
+| PUT    | /noticias/:id   | Atualizar         |
+| DELETE | /noticias/:id   | Deletar           |
 
 ### Tecnologias
 
-- React Native + Expo 54
-- Expo Router (navegação por arquivos)
-- expo-sqlite 16 + Drizzle ORM (persistência local)
-- TypeScript
+**API:** TypeScript, Express, better-sqlite3, Drizzle ORM
 
-### Entidade persistida
+**Mobile:** React Native, Expo 54, Expo Router, Axios, TypeScript
 
-Tabela `noticia` no banco SQLite local (`miau.db`):
+### Entidade
+
+Tabela `noticia`:
 
 | Campo       | Tipo    |
 |-------------|---------|
