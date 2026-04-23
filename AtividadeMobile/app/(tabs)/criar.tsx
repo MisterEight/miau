@@ -38,7 +38,7 @@ export default function CriarScreen() {
   const [noticiaId, setNoticiaId] = useState<string | null>(null);
   const [foiPublicada, setFoiPublicada] = useState(false);
 
-  function handleSalvar() {
+  async function handleSalvar() {
     setErro('');
     if (!titulo.trim()) {
       setErro('O título é obrigatório.');
@@ -53,7 +53,7 @@ export default function CriarScreen() {
     const hoje = new Date();
     const data = hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
 
-    const id = addNoticia({
+    const id = await addNoticia({
       titulo: titulo.trim(),
       resumo: resumo.trim() || titulo.trim(),
       autor,

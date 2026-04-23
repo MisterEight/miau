@@ -1,4 +1,7 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { db, initDb } from '../db';
+import { noticias as noticiasTable } from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 export type Noticia = {
   id: string;
@@ -28,9 +31,8 @@ export type Tag = {
   cor: string;
 };
 
-export const NOTICIAS_INICIAL: Noticia[] = [
+const NOTICIAS_SEED = [
   {
-    id: '1',
     titulo: 'Jesus Esclarece que Retorno Será Limitado ao Negócio de Carpintaria',
     resumo: 'O Filho de Deus confirmou que sua Segunda Vinda focará exclusivamente em projetos de marcenaria e móveis artesanais.',
     autor: 'Ana Souza',
@@ -42,7 +44,6 @@ export const NOTICIAS_INICIAL: Noticia[] = [
     publicada: true,
   },
   {
-    id: '2',
     titulo: 'Cientistas Descobrem que Café é Tecnicamente um Vegetal',
     resumo: 'Estudo publicado na revista Nature confirma que consumidores de café estão cumprindo metas de alimentação saudável.',
     autor: 'Bruno Lima',
@@ -54,7 +55,6 @@ export const NOTICIAS_INICIAL: Noticia[] = [
     publicada: true,
   },
   {
-    id: '3',
     titulo: 'Prefeitura Anuncia que Semáforo Piscando Amarelo É Feature, Não Bug',
     resumo: 'Secretaria de Trânsito divulga nota oficial esclarecendo que o comportamento é intencional e visa "testar reflexos dos motoristas".',
     autor: 'Elisa Ramos',
@@ -66,7 +66,6 @@ export const NOTICIAS_INICIAL: Noticia[] = [
     publicada: true,
   },
   {
-    id: '4',
     titulo: 'Desenvolvedor Afirma que Vai Refatorar Código "Amanhã" pelo Quinto Ano Consecutivo',
     resumo: 'Colegas relatam que o código foi escrito "só pra testar" em 2020 e desde então roda em produção sem alterações.',
     autor: 'Ana Souza',
@@ -78,7 +77,6 @@ export const NOTICIAS_INICIAL: Noticia[] = [
     publicada: true,
   },
   {
-    id: '5',
     titulo: 'Pesquisa Mostra que 100% das Plantas Morrem Quando Ninguém Cuida',
     resumo: 'Estudo de 3 anos e R$ 2 milhões confirma que plantas precisam de água para sobreviver.',
     autor: 'Carla Nunes',
@@ -91,15 +89,7 @@ export const NOTICIAS_INICIAL: Noticia[] = [
   },
 ];
 
-const COMENTARIOS_INICIAL: Record<string, Comentario[]> = {
-  '1': [
-    { id: 1, autor: 'Diego Martins', texto: 'Incrível matéria! Muito bem escrita.', data: '8 abr', curtidas: 12 },
-    { id: 2, autor: 'Carla Nunes', texto: 'Compartilhei com todo mundo, genial!', data: '8 abr', curtidas: 5 },
-  ],
-  '4': [
-    { id: 3, autor: 'Felipe Torres', texto: 'Isso acontece em toda empresa rsrs', data: '9 abr', curtidas: 8 },
-  ],
-};
+const COMENTARIOS_INICIAL: Record<string, Comentario[]> = {};
 
 export const TAGS_INICIAL: Tag[] = [
   { id: 1, nome: 'Tecnologia', usos: 12, cor: '#3498DB' },
@@ -113,7 +103,8 @@ const CORES_TAG = ['#3498DB', '#2ECC71', '#E74C3C', '#9B59B6', '#F39C12', '#F0A5
 
 type AppStoreContextType = {
   noticias: Noticia[];
-  addNoticia: (n: Omit<Noticia, 'id' | 'leituras' | 'comentarios'>) => string;
+  dbReady: boolean;
+  addNoticia: (n: Omit<Noticia, 'id' | 'leituras' | 'comentarios'>) => Promise<string>;
   updateNoticia: (id: string, changes: Partial<Noticia>) => void;
   deleteNoticia: (id: string) => void;
   getComentarios: (noticiaId: string) => Comentario[];
@@ -126,7 +117,8 @@ type AppStoreContextType = {
 
 const AppStoreContext = createContext<AppStoreContextType>({
   noticias: [],
-  addNoticia: () => '',
+  dbReady: false,
+  addNoticia: async () => '',
   updateNoticia: () => {},
   deleteNoticia: () => {},
   getComentarios: () => [],
@@ -138,23 +130,47 @@ const AppStoreContext = createContext<AppStoreContextType>({
 });
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
-  const [noticias, setNoticias] = useState<Noticia[]>(NOTICIAS_INICIAL);
+  const [noticias, setNoticias] = useState<Noticia[]>([]);
   const [comentarios, setComentarios] = useState<Record<string, Comentario[]>>(COMENTARIOS_INICIAL);
   const [tags, setTags] = useState<Tag[]>(TAGS_INICIAL);
+  const [dbReady, setDbReady] = useState(false);
 
-  function addNoticia(n: Omit<Noticia, 'id' | 'leituras' | 'comentarios'>): string {
-    const id = String(Date.now());
-    const nova: Noticia = { ...n, id, leituras: 0, comentarios: 0 };
-    setNoticias((prev) => [nova, ...prev]);
+  useEffect(() => {
+    (async () => {
+      await initDb();
+      const rows = await db.select().from(noticiasTable);
+      if (rows.length === 0) {
+        await db.insert(noticiasTable).values(NOTICIAS_SEED);
+        const seeded = await db.select().from(noticiasTable);
+        setNoticias(seeded.map((r) => ({ ...r, id: String(r.id) })));
+      } else {
+        setNoticias(rows.map((r) => ({ ...r, id: String(r.id) })));
+      }
+      setDbReady(true);
+    })();
+  }, []);
+
+  async function addNoticia(n: Omit<Noticia, 'id' | 'leituras' | 'comentarios'>): Promise<string> {
+    const [inserted] = await db
+      .insert(noticiasTable)
+      .values({ ...n, leituras: 0, comentarios: 0 })
+      .returning({ id: noticiasTable.id });
+    const id = String(inserted.id);
+    setNoticias((prev) => [{ ...n, id, leituras: 0, comentarios: 0 }, ...prev]);
     return id;
   }
 
   function updateNoticia(id: string, changes: Partial<Noticia>) {
     setNoticias((prev) => prev.map((n) => (n.id === id ? { ...n, ...changes } : n)));
+    const { titulo, resumo, autor, data, tag, uf, leituras, comentarios, publicada } = changes;
+    const fields = { titulo, resumo, autor, data, tag, uf, leituras, comentarios, publicada };
+    const clean = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
+    db.update(noticiasTable).set(clean).where(eq(noticiasTable.id, Number(id))).then(() => {});
   }
 
   function deleteNoticia(id: string) {
     setNoticias((prev) => prev.filter((n) => n.id !== id));
+    db.delete(noticiasTable).where(eq(noticiasTable.id, Number(id))).then(() => {});
   }
 
   function getComentarios(noticiaId: string): Comentario[] {
@@ -189,6 +205,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     <AppStoreContext.Provider
       value={{
         noticias,
+        dbReady,
         addNoticia,
         updateNoticia,
         deleteNoticia,
